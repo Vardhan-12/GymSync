@@ -1,145 +1,249 @@
-🏋️ GymSync
+# 🏋️ GymSync — Social Fitness Platform
 
-GymSync is a MERN-based gym coordination platform that helps users plan workouts, monitor gym crowd density, and connect with compatible gym partners.
+A full-stack web application that helps users track gym sessions, log workouts, analyze gym crowd density, and interact socially with other fitness enthusiasts.
 
-🚀 Project Vision
+Built with a scalable architecture and production-ready practices.
 
-GymSync aims to make gym sessions more organized and social by allowing users to:
+---
 
-Schedule planned workout times
+## 🚀 Features
 
-View gym crowd density
+### 🔐 Authentication
+- User Registration & Login
+- JWT Authentication (Access + Refresh Tokens)
+- Secure httpOnly cookie handling
+- Protected routes & role-based access
 
-Find compatible gym partners
+---
 
-Send match requests
+### 🏋️ Workout System
+- Create workout sessions (e.g., Chest & Triceps)
+- Add multiple exercises per session
+- Edit sets, reps, and weights
+- Delete or update workouts
+- View workout history
 
-Chat after mutual acceptance
+---
 
-🛠️ Tech Stack
-Backend
+### 📊 Dashboard Analytics
+- Gym crowd density (30-min windows)
+- Peak hour detection
+- Best time prediction
+- Weekly activity summary
+- Previous workout display
 
-Node.js
+---
 
-Express.js
+### 📅 Gym Sessions
+- Track gym visits (start time + duration)
+- Overlapping user detection
+- Peak-hour analysis
+- Density calculation based on real data
 
-MongoDB
+---
 
-Mongoose
+### 👥 Social Features (Profile)
+- Like workout sessions ❤️
+- Comment on workouts 💬
+- View workout feed in profile
+- Clean separation between training & social
 
-JWT Authentication
+---
 
-bcrypt (Password Hashing)
+### 📈 Progress Tracking
+- Exercise-based progress (e.g., Bench Press growth)
+- Historical workout insights
+- Ready for analytics expansion
 
-Frontend (In Progress)
+---
 
-React.js
+## 🧠 Tech Stack
 
-🔐 Authentication System (Completed)
+### Frontend
+- React (Vite)
+- React Router
+- Context API
+- Axios
+- Recharts
 
-The backend currently includes a fully implemented authentication system:
+### Backend
+- Node.js
+- Express.js
+- MongoDB (Mongoose)
+- JWT Authentication
 
-User Registration
+### Tools
+- Postman
+- GitHub
+- Render (deployment ready)
 
-User Login
+---
 
-Password Hashing (bcrypt)
-
-JWT Token Generation
-
-Protected Routes Middleware
-
-Secure Environment Variable Handling
-
-📂 Project Structure
-gym-sync/
-│
-├── backend/
-│   ├── config/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── server.js
-│   └── package.json
-│
-├── frontend/
-│
-├── .gitignore
-└── README.md
-
-⚙️ Backend Setup Instructions
-
-Clone the repository:
-
-git clone https://github.com/Vardhan-12/gym-sync.git
-
-
-Navigate to backend folder:
-
-cd gym-sync/backend
-
-
-Install dependencies:
-
-npm install
+## 📁 Project Structure
 
 
-Create a .env file:
+backend/
+controllers/
+services/
+models/
+routes/
+middleware/
+utils/
 
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_secret_key
+frontend/
+src/
+features/
+auth/
+session/
+dashboard/
+workout/
+profile/
+app/
+layout/
+services/
 
 
-Start server:
+---
 
-npm run dev
+## 🗄️ Core Data Models
 
-🔑 API Endpoints (Current)
-Authentication Routes
+### Workout Session
+
+{
+  "title": "Chest & Triceps",
+  "exercises": [
+    {
+      "name": "Bench Press",
+      "sets": 4,
+      "reps": 10,
+      "weight": 60
+    }
+  ],
+  "likes": [],
+  "comments": [],
+  "createdBy": "userId"
+}
+Gym Session
+{
+  "startTime": "2026-03-12T16:00:00Z",
+  "duration": 90,
+  "createdBy": "userId"
+}
+🔌 API Endpoints
+Auth
 
 POST /api/auth/register
 
 POST /api/auth/login
 
-Protected Route Example
+POST /api/auth/logout
 
-GET /api/users/profile
+Sessions
 
-Requires:
+POST /api/sessions
 
-Authorization: Bearer <JWT_TOKEN>
+GET /api/sessions
 
-📈 Development Status
+DELETE /api/sessions/:id
 
-✅ Authentication System Complete
+GET /api/sessions/density
 
-🔄 User Profile APIs (Next)
+GET /api/sessions/peak-hours
 
-🔄 Workout CRUD (Planned)
+GET /api/sessions/best-time
 
-🔄 Partner Matching Logic (Planned)
+Workouts
 
-🔄 Real-time Chat (Planned)
+POST /api/workouts
 
-🎯 Future Enhancements
+GET /api/workouts
 
-Workout tracking dashboard
+PUT /api/workouts/:id
 
-Real-time crowd analytics
+DELETE /api/workouts/:id
 
-Matching algorithm optimization
+POST /api/workouts/:id/like
 
-WebSocket-based chat system
+POST /api/workouts/:id/comment
 
-Deployment to cloud (Render / Railway)
+GET /api/workouts/latest
 
-👤 Author
+⚙️ Setup Instructions
+1️⃣ Clone Repo
+git clone https://github.com/your-username/gymsync.git
+cd gymsync
+2️⃣ Backend Setup
+cd backend
+npm install
+npm run dev
+3️⃣ Frontend Setup
+cd frontend
+npm install
+npm run dev
+🔑 Environment Variables
+Backend .env
+PORT=5000
+MONGO_URI=your_mongodb_uri
+JWT_ACCESS_SECRET=your_secret
+JWT_REFRESH_SECRET=your_secret
+CLIENT_URL=http://localhost:5173
+🧪 Example API Request
+Create Workout
+POST /api/workouts
 
-Bala Vardhan Utla
-B.Tech CSE
-Aspiring Full Stack Developer
+{
+  "title": "Back & Biceps",
+  "exercises": [
+    {
+      "name": "Lat Pulldown",
+      "sets": 4,
+      "reps": 12,
+      "weight": 60
+    }
+  ]
+}
+🎯 Key Highlights
 
-📌 Note
+Clean layered architecture (Controller → Service → Model)
 
-This project is currently under active development.
+Real-world feature design (Workout Templates & Sessions)
+
+Social + Analytics combined in one platform
+
+Scalable and modular frontend structure
+
+Production-ready authentication system
+
+📦 Deployment
+
+Backend: Render / Railway
+
+Frontend: Vercel / Netlify
+
+📌 Future Scope
+
+Real-time chat (Socket.io)
+
+Workout streak tracking
+
+Advanced analytics & AI predictions
+
+Followers & social feed
+
+Push notifications
+
+👨‍💻 Author
+
+Balavardhan
+
+⭐ Final Note
+
+GymSync is designed as a complete full-stack system combining:
+
+fitness tracking
+
+social interaction
+
+data analytics
+
+making it a strong project for placements and real-world applications.
