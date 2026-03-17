@@ -109,6 +109,7 @@ services/
 
 ### Workout Session
 
+```json
 {
   "title": "Chest & Triceps",
   "exercises": [
