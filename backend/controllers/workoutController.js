@@ -38,14 +38,20 @@ exports.deleteWorkoutSession = asyncHandler(async (req, res) => {
 
 //Get Exercise Progress
 exports.getExerciseProgress = asyncHandler(async (req, res) => {
-
   const { exercise } = req.params;
 
-  const result = await Workout.aggregate([
+  const result = await WorkoutSession.aggregate([
     {
       $match: {
-        createdBy: req.user._id,
-        exercise: exercise
+        createdBy: req.user._id
+      }
+    },
+    {
+      $unwind: "$exercises"
+    },
+    {
+      $match: {
+        "exercises.name": exercise
       }
     },
     {
@@ -54,13 +60,12 @@ exports.getExerciseProgress = asyncHandler(async (req, res) => {
     {
       $project: {
         date: "$createdAt",
-        weight: "$weight"
+        weight: "$exercises.weight"
       }
     }
   ]);
 
   res.json(result);
-
 });
 
 //get latest workout
@@ -114,4 +119,33 @@ exports.updateWorkoutSession = asyncHandler(async (req, res) => {
 
   res.json(updated);
 
+});
+
+exports.getUserExercises = asyncHandler(async (req, res) => {
+  const result = await WorkoutSession.aggregate([
+    {
+      $match: {
+        createdBy: req.user._id
+      }
+    },
+    {
+      $unwind: "$exercises"
+    },
+    {
+      $group: {
+        _id: "$exercises.name"
+      }
+    },
+    {
+      $project: {
+        name: "$_id",
+        _id: 0
+      }
+    },
+    {
+      $sort: { name: 1 }
+    }
+  ]);
+
+  res.json(result);
 });

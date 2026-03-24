@@ -74,7 +74,7 @@ function WorkoutPage() {
     <div>
 
       <h1>Workout Tracker</h1>
-
+   
 
       {/* ================= WORKOUT LIBRARY ================= */}
 

@@ -43,6 +43,11 @@ const workoutSessionSchema = new mongoose.Schema(
 
     exercises: [exerciseSchema],
 
+    totalVolume: {
+  type: Number,
+  default: 0
+},
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

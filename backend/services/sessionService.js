@@ -58,3 +58,10 @@ exports.deleteSession = async (sessionId, userId) => {
 
   return { message: "Session deleted successfully" };
 };
+
+//get latest workout
+
+exports.getLatestWorkout = async (userId) => {
+  return await WorkoutSession.findOne({ createdBy: userId })
+    .sort({ createdAt: -1 });
+};

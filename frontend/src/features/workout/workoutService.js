@@ -34,3 +34,13 @@ export const updateWorkout = async (id, data) => {
   const response = await axios.put(`/workouts/${id}`, data);
   return response.data;
 };
+
+export const getExerciseProgress = async (exercise) => {
+  const response = await axios.get(`/workouts/progress/${exercise}`);
+  return response.data;
+};
+
+export const getUserExercises = async () => {
+  const response = await axios.get("/workouts/exercises");
+  return response.data;
+};

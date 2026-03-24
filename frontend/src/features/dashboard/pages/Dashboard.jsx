@@ -1,13 +1,13 @@
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../auth/authContext";
 import { getRandomQuote } from "../../../utils/quotes";
-import { getLatestWorkout } from "../../workout/workoutService";
 
 import {
   getDensity,
   getPeakHours,
   getBestTime,
-  getWeeklySummary
+  getWeeklySummary,
+  getLatestWorkout
 } from "../dashboardService";
 
 import DensityChart from "../DensityChart";
@@ -15,7 +15,6 @@ import WeeklyChart from "../WeeklyChart";
 import { getCrowdLevel } from "../crowdLevel";
 
 function Dashboard() {
-
   const { user } = useContext(AuthContext);
   const quote = getRandomQuote();
 
@@ -24,14 +23,12 @@ function Dashboard() {
   const [bestTime, setBestTime] = useState(null);
   const [weeklyData, setWeeklyData] = useState([]);
   const [currentCrowd, setCurrentCrowd] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [latestWorkout, setLatestWorkout] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     const fetchDashboardData = async () => {
       try {
-
         const today = new Date().toISOString().split("T")[0];
 
         const densityData = await getDensity(today);
@@ -39,11 +36,12 @@ function Dashboard() {
         const bestData = await getBestTime();
         const weekly = await getWeeklySummary();
         const latest = await getLatestWorkout();
-        setLatestWorkout(latest);
+
         setDensity(densityData);
         setPeakHours(peakData);
         setBestTime(bestData);
         setWeeklyData(weekly);
+        setLatestWorkout(latest);
 
         // Detect current crowd level
         const now = new Date();
@@ -51,7 +49,6 @@ function Dashboard() {
         const currentWindow = densityData.find((w) => {
           const start = new Date(w.windowStart);
           const end = new Date(start.getTime() + 30 * 60000);
-
           return now >= start && now < end;
         });
 
@@ -69,13 +66,11 @@ function Dashboard() {
     if (user) {
       fetchDashboardData();
     }
-
   }, [user]);
 
   if (!user) {
     return (
       <div>
-
         <h1>Welcome to GymSync</h1>
 
         <h3>Motivation</h3>
@@ -84,14 +79,12 @@ function Dashboard() {
         <p style={{ marginTop: "20px" }}>
           Login to unlock GymSync features.
         </p>
-
       </div>
     );
   }
 
   return (
     <div>
-
       <h1>Dashboard</h1>
 
       <h3>Motivation</h3>
@@ -101,28 +94,26 @@ function Dashboard() {
         <p>Loading analytics...</p>
       ) : (
         <>
+          {/* Latest Workout */}
 
-          {/* Previous Workout */}
+          <h3 style={{ marginTop: "30px" }}>Last Workout</h3>
 
-          <h3 style={{ marginTop: "30px" }}>Previous Workout</h3>
-
-{latestWorkout ? (
-  <div>
-    <p>Exercise: {latestWorkout.exercise}</p>
-    <p>Muscle Group: {latestWorkout.muscleGroup}</p>
-    <p>Sets: {latestWorkout.sets}</p>
-    <p>Reps: {latestWorkout.reps}</p>
-    <p>Weight: {latestWorkout.weight} kg</p>
-  </div>
-) : (
-  <p>No workouts logged yet.</p>
-)}
+          {latestWorkout ? (
+            <div>
+              <p><strong>{latestWorkout.title}</strong></p>
+              <p>Volume: {latestWorkout.totalVolume}</p>
+              <p>Exercises: {latestWorkout.exercises.length}</p>
+              <p>
+                Date: {new Date(latestWorkout.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          ) : (
+            <p>No workouts logged yet.</p>
+          )}
 
           {/* Current Gym Status */}
 
           <h3 style={{ marginTop: "30px" }}>Current Gym Status</h3>
-
-          
 
           {currentCrowd ? (
             <p style={{ fontWeight: "bold", color: currentCrowd.color }}>
@@ -132,7 +123,7 @@ function Dashboard() {
             <p>No data available</p>
           )}
 
-          {/* Weekly Activity Chart */}
+          {/* Weekly Activity */}
 
           <h3 style={{ marginTop: "30px" }}>Weekly Gym Activity</h3>
 
@@ -145,8 +136,6 @@ function Dashboard() {
           {/* Best Time Prediction */}
 
           <h3 style={{ marginTop: "30px" }}>Gym Crowd Prediction</h3>
-
-          <h4>Best Time to Visit</h4>
 
           <p>
             {bestTime
@@ -177,14 +166,8 @@ function Dashboard() {
           ) : (
             <DensityChart data={density} />
           )}
-
         </>
       )}
-
-      {/* Workout Section Placeholder */}
-
-      <h3 style={{ marginTop: "30px" }}>Previous Workout</h3>
-      <p>No workouts logged yet.</p>
 
       {/* About */}
 
@@ -194,7 +177,6 @@ function Dashboard() {
         GymSync helps you track workouts, find gym partners,
         and analyze gym crowd density.
       </p>
-
     </div>
   );
 }

@@ -1,23 +1,25 @@
 const WorkoutSession = require("../models/WorkoutSession");
 const AppError = require("../utils/AppError");
+const calculateWorkoutVolume = require("../utils/calculateWorkoutVolume");
 
 // Create workout
 exports.createWorkoutSession = async (data, userId) => {
-
   const { title, exercises } = data;
 
   if (!title) {
     throw new AppError("Workout title required");
   }
 
+  const totalVolume = calculateWorkoutVolume(exercises);
+
   const session = await WorkoutSession.create({
     title,
     exercises,
+    totalVolume, // ✅ added
     createdBy: userId
   });
 
   return session;
-
 };
 
 // Get workouts
@@ -96,7 +98,6 @@ exports.addComment = async (sessionId, userId, text) => {
 };
 
 exports.updateWorkoutSession = async (id, userId, data) => {
-
   const session = await WorkoutSession.findById(id);
 
   if (!session) {
@@ -110,8 +111,11 @@ exports.updateWorkoutSession = async (id, userId, data) => {
   session.title = data.title || session.title;
   session.exercises = data.exercises || session.exercises;
 
+  // ✅ Recalculate volume when exercises change
+  session.totalVolume = calculateWorkoutVolume(session.exercises);
+
   await session.save();
 
   return session;
-
 };
+
