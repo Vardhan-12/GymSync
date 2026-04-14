@@ -1,21 +1,42 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { getMessages, sendMessage } from "../chatService";
+import socket from "../../../socket";
 
 function ChatPage() {
   const { matchId } = useParams();
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [typing, setTyping] = useState(false);
 
+  const myId = localStorage.getItem("userId");
   const bottomRef = useRef(null);
 
+  /* ================== LOAD + SOCKET ================== */
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(loadMessages, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
+    // join room
+    socket.emit("joinRoom", matchId);
+
+    // receive message
+    socket.on("receiveMessage", (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    // typing
+    socket.on("typing", () => setTyping(true));
+    socket.on("stopTyping", () => setTyping(false));
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("typing");
+      socket.off("stopTyping");
+    };
+  }, [matchId]);
+
+  /* ================== LOAD MESSAGES ================== */
   const loadMessages = async () => {
     try {
       const data = await getMessages(matchId);
@@ -25,34 +46,58 @@ function ChatPage() {
     }
   };
 
+  /* ================== AUTO SCROLL ================== */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  /* ================== SEND MESSAGE ================== */
   const handleSend = async () => {
     if (!text.trim()) return;
 
     const newMsg = text;
     setText("");
 
+    const messageData = {
+      matchId,
+      text: newMsg,
+      sender: {
+        _id: myId,
+        name: "You",
+      },
+      createdAt: new Date(),
+    };
+
     try {
+      // realtime
+      socket.emit("sendMessage", messageData);
+
+      // save in DB
       await sendMessage(matchId, newMsg);
-      loadMessages();
     } catch (err) {
       console.log(err);
     }
   };
 
-  const myId = localStorage.getItem("userId");
+  /* ================== TYPING ================== */
+  const handleTyping = (e) => {
+    setText(e.target.value);
 
+    socket.emit("typing", matchId);
+
+    setTimeout(() => {
+      socket.emit("stopTyping", matchId);
+    }, 1000);
+  };
+
+  /* ================== UI ================== */
   return (
     <div style={container}>
-      {/* 🔹 HEADER */}
       <div style={header}>
         <h3>Chat</h3>
       </div>
 
-      {/* 🔹 CHAT AREA */}
+      {/* CHAT */}
       <div style={chatBox}>
         {messages.map((msg) => {
           const isMe = msg.sender._id === myId;
@@ -75,15 +120,12 @@ function ChatPage() {
                     : "12px 12px 12px 0",
                 }}
               >
-                {/* NAME */}
                 <div style={name}>
                   {isMe ? "You" : msg.sender.name}
                 </div>
 
-                {/* MESSAGE */}
                 <div style={textStyle}>{msg.text}</div>
 
-                {/* TIME */}
                 <div style={time}>
                   {new Date(msg.createdAt).toLocaleTimeString()}
                 </div>
@@ -92,14 +134,17 @@ function ChatPage() {
           );
         })}
 
+        {/* typing */}
+        {typing && <p style={{ fontSize: "12px" }}>Typing...</p>}
+
         <div ref={bottomRef} />
       </div>
 
-      {/* 🔹 INPUT */}
+      {/* INPUT */}
       <div style={inputBar}>
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleTyping}
           placeholder="Type a message..."
           style={input}
           onKeyDown={(e) => {
@@ -107,14 +152,7 @@ function ChatPage() {
           }}
         />
 
-        <button
-          onClick={handleSend}
-          disabled={!text.trim()}
-          style={{
-            ...sendBtn,
-            opacity: text.trim() ? 1 : 0.5,
-          }}
-        >
+        <button onClick={handleSend} style={sendBtn}>
           Send
         </button>
       </div>
@@ -122,7 +160,7 @@ function ChatPage() {
   );
 }
 
-/* 🔥 STYLES */
+/* ================== STYLES ================== */
 
 const container = {
   display: "flex",

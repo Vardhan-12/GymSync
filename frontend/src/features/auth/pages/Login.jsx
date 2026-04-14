@@ -30,7 +30,7 @@ async function handleLogin(e) {
     }
 
     // ✅ FIXED KEY
-    localStorage.setItem("accessToken", token);
+   localStorage.setItem("accessToken", token);
 localStorage.setItem("userId", data.user._id);
 
     // ✅ TEMP USER SET
