@@ -1,3 +1,4 @@
+// ================== IMPORTS ==================
 const express = require("express");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
@@ -19,26 +20,26 @@ connectDB();
 // ================== APP ==================
 const app = express();
 
-// ================== SECURITY ==================
+// ================== SECURITY MIDDLEWARE ==================
 app.use(
   helmet({
-    crossOriginResourcePolicy: false,
+    crossOriginResourcePolicy: false, // allow frontend assets
   })
 );
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "http://localhost:5173", // frontend URL
     credentials: true,
   })
 );
 
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: "10kb" })); // body parser
 app.use(cookieParser());
-app.use(morgan("dev"));
-app.use(hpp());
+app.use(morgan("dev")); // logs
+app.use(hpp()); // prevent HTTP param pollution
 
-// ================== RATE LIMIT (optional) ==================
+// ================== RATE LIMIT (OPTIONAL) ==================
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -55,7 +56,7 @@ app.use("/api/workouts", require("./routes/workoutRoutes"));
 app.use("/api/match", require("./routes/matchRoutes"));
 app.use("/api/chat", require("./routes/chatRoutes"));
 
-// ================== HEALTH ==================
+// ================== HEALTH CHECK ==================
 app.get("/", (req, res) => {
   res.send("GymSync API running");
 });
@@ -64,12 +65,10 @@ app.get("/", (req, res) => {
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
 
-// ================== SOCKET SETUP ==================
-
-// 1. create HTTP server
+// ================== CREATE HTTP SERVER ==================
 const server = http.createServer(app);
 
-// 2. attach socket.io
+// ================== SOCKET.IO SETUP ==================
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
@@ -77,35 +76,34 @@ const io = new Server(server, {
   },
 });
 
-// 3. store online users (userId + socketId)
-let onlineUsers = [];
+// ================== ONLINE USERS STORE ==================
+// Use Set to avoid duplicates
+let onlineUsers = new Set();
 
-// 4. socket logic
+// ================== SOCKET LOGIC ==================
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // ===== USER ONLINE =====
+  // 🔹 When user opens app → register as online
   socket.on("userOnline", (userId) => {
-    const exists = onlineUsers.find((u) => u.userId === userId);
+    socket.userId = userId; // attach userId to socket
+    onlineUsers.add(userId);
 
-    if (!exists) {
-      onlineUsers.push({ userId, socketId: socket.id });
-    }
-
-    io.emit("onlineUsers", onlineUsers);
+    // broadcast updated online users list
+    io.emit("onlineUsers", Array.from(onlineUsers));
   });
 
-  // ===== JOIN CHAT ROOM =====
+  // 🔹 Join specific chat room
   socket.on("joinRoom", (matchId) => {
     socket.join(matchId);
   });
 
-  // ===== SEND MESSAGE =====
+  // 🔹 Send message to room
   socket.on("sendMessage", (data) => {
     io.to(data.matchId).emit("receiveMessage", data);
   });
 
-  // ===== TYPING =====
+  // 🔹 Typing indicator
   socket.on("typing", (matchId) => {
     socket.to(matchId).emit("typing");
   });
@@ -114,16 +112,16 @@ io.on("connection", (socket) => {
     socket.to(matchId).emit("stopTyping");
   });
 
-  // ===== DISCONNECT =====
+  // 🔹 Handle disconnect
   socket.on("disconnect", () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+
+      // update all clients
+      io.emit("onlineUsers", Array.from(onlineUsers));
+    }
+
     console.log("User disconnected:", socket.id);
-
-    // remove user by socketId
-    onlineUsers = onlineUsers.filter(
-      (u) => u.socketId !== socket.id
-    );
-
-    io.emit("onlineUsers", onlineUsers);
   });
 });
 
@@ -134,4 +132,5 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+// ================== EXPORT ==================
 module.exports = app;

@@ -4,103 +4,189 @@ import { getMessages, sendMessage } from "../chatService";
 import socket from "../../../socket";
 
 function ChatPage() {
+  // 🔹 matchId comes from route: /chat/:matchId
   const { matchId } = useParams();
 
+  // 🔹 state
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
+  // 🔹 current user id (stored at login)
   const myId = localStorage.getItem("userId");
+
+  // 🔹 for auto-scroll
   const bottomRef = useRef(null);
 
-  /* ================== LOAD + SOCKET ================== */
-  useEffect(() => {
-    loadMessages();
+  // 🔹 to control typing debounce timer
+  const typingTimeoutRef = useRef(null);
 
-    // join room
+  /* ===================================================
+     LOAD INITIAL DATA + SOCKET SUBSCRIPTIONS
+     =================================================== */
+  useEffect(() => {
+    // reset pagination when match changes
+    setPage(1);
+    loadMessages(1);
+
+    // join socket room for this match
     socket.emit("joinRoom", matchId);
 
-    // receive message
-    socket.on("receiveMessage", (msg) => {
+    // receive new messages (realtime)
+    const onReceive = (msg) => {
       setMessages((prev) => [...prev, msg]);
-    });
+    };
 
-    // typing
-    socket.on("typing", () => setTyping(true));
-    socket.on("stopTyping", () => setTyping(false));
+    // typing indicators
+    const onTyping = () => setTyping(true);
+    const onStopTyping = () => setTyping(false);
 
+    socket.on("receiveMessage", (msg) => {
+  setMessages((prev) => {
+    // ✅ prevent duplicate messages
+    const exists = prev.some(
+      (m) =>
+        m._id === msg._id ||
+        (m.text === msg.text && m.createdAt === msg.createdAt)
+    );
+
+    if (exists) return prev;
+
+    return [...prev, msg];
+  });
+});
+    socket.on("typing", onTyping);
+    socket.on("stopTyping", onStopTyping);
+
+    // cleanup on unmount / match change
     return () => {
-      socket.off("receiveMessage");
-      socket.off("typing");
-      socket.off("stopTyping");
+      socket.off("receiveMessage", onReceive);
+      socket.off("typing", onTyping);
+      socket.off("stopTyping", onStopTyping);
     };
   }, [matchId]);
 
-  /* ================== LOAD MESSAGES ================== */
-  const loadMessages = async () => {
+  /* ===================================================
+     LOAD MESSAGES (WITH PAGINATION)
+     Backend returns:
+     { messages: [], hasMore: true/false }
+     =================================================== */
+  const loadMessages = async (pageNum = 1) => {
     try {
-      const data = await getMessages(matchId);
-      setMessages(data);
+      // NOTE: your service should call:
+      // GET /api/chat/:matchId?page=pageNum&limit=20
+      const data = await getMessages(matchId, pageNum);
+
+      if (pageNum === 1) {
+        // first page → replace
+        setMessages(data.messages || []);
+      } else {
+        // older messages → prepend
+        setMessages((prev) => [...(data.messages || []), ...prev]);
+      }
+
+      setHasMore(Boolean(data.hasMore));
     } catch (err) {
-      console.log(err);
+      console.log("Load messages error:", err);
     }
   };
 
-  /* ================== AUTO SCROLL ================== */
+  /* ===================================================
+     AUTO SCROLL TO BOTTOM WHEN NEW MESSAGE ARRIVES
+     =================================================== */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ================== SEND MESSAGE ================== */
+  /* ===================================================
+     SEND MESSAGE
+     - optimistic UI update
+     - emit via socket
+     - persist via API
+     =================================================== */
   const handleSend = async () => {
     if (!text.trim()) return;
 
-    const newMsg = text;
+    const newMsg = text.trim();
     setText("");
 
-    const messageData = {
+    // temporary message for instant UI
+    const tempMsg = {
+      _id: `temp-${Date.now()}`, // unique temp key
       matchId,
       text: newMsg,
-      sender: {
-        _id: myId,
-        name: "You",
-      },
-      createdAt: new Date(),
+      sender: { _id: myId, name: "You" },
+      createdAt: new Date().toISOString(),
     };
 
     try {
-      // realtime
-      socket.emit("sendMessage", messageData);
+      // 1) instant UI
+      setMessages((prev) => [...prev, tempMsg]);
 
-      // save in DB
+      // 2) realtime
+      socket.emit("sendMessage", tempMsg);
+
+      // 3) save in DB
       await sendMessage(matchId, newMsg);
     } catch (err) {
-      console.log(err);
+      console.log("Send error:", err);
     }
   };
 
-  /* ================== TYPING ================== */
+  /* ===================================================
+     TYPING HANDLER (DEBOUNCED)
+     =================================================== */
   const handleTyping = (e) => {
-    setText(e.target.value);
+    const value = e.target.value;
+    setText(value);
 
+    // emit typing
     socket.emit("typing", matchId);
 
-    setTimeout(() => {
+    // clear previous timer
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // stop typing after 800ms of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
       socket.emit("stopTyping", matchId);
-    }, 1000);
+    }, 800);
   };
 
-  /* ================== UI ================== */
+  /* ===================================================
+     LOAD OLDER MESSAGES (BUTTON)
+     =================================================== */
+  const loadOlder = () => {
+    const next = page + 1;
+    setPage(next);
+    loadMessages(next);
+  };
+
+  /* ===================================================
+     UI
+     =================================================== */
   return (
     <div style={container}>
+      {/* HEADER */}
       <div style={header}>
-        <h3>Chat</h3>
+        <h3 style={{ margin: 0 }}>Chat</h3>
       </div>
 
-      {/* CHAT */}
+      {/* CHAT AREA */}
       <div style={chatBox}>
+        {/* LOAD MORE */}
+        {hasMore && (
+          <button onClick={loadOlder} style={loadMoreBtn}>
+            Load Older Messages
+          </button>
+        )}
+
+        {/* MESSAGES */}
         {messages.map((msg) => {
-          const isMe = msg.sender._id === myId;
+          const isMe = String(msg.sender._id) === String(myId);
 
           return (
             <div
@@ -121,7 +207,7 @@ function ChatPage() {
                 }}
               >
                 <div style={name}>
-                  {isMe ? "You" : msg.sender.name}
+                  {isMe ? "You" : msg.sender?.name}
                 </div>
 
                 <div style={textStyle}>{msg.text}</div>
@@ -134,9 +220,10 @@ function ChatPage() {
           );
         })}
 
-        {/* typing */}
-        {typing && <p style={{ fontSize: "12px" }}>Typing...</p>}
+        {/* TYPING */}
+        {typing && <p style={typingStyle}>Typing...</p>}
 
+        {/* SCROLL ANCHOR */}
         <div ref={bottomRef} />
       </div>
 
@@ -189,6 +276,15 @@ const chatBox = {
   background: "#f9f9f9",
 };
 
+const loadMoreBtn = {
+  alignSelf: "center",
+  padding: "6px 10px",
+  border: "1px solid #ccc",
+  borderRadius: "6px",
+  cursor: "pointer",
+  background: "#fff",
+};
+
 const messageWrapper = {
   display: "flex",
 };
@@ -216,6 +312,11 @@ const time = {
   fontSize: "10px",
   textAlign: "right",
   opacity: 0.7,
+};
+
+const typingStyle = {
+  fontSize: "12px",
+  color: "gray",
 };
 
 const inputBar = {
