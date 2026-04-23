@@ -1,49 +1,51 @@
 import { useState } from "react";
 import { createSession } from "../sessionService";
 
-function SessionForm({ setSessions }) {
+function SessionForm({ refreshSessions }) {
 
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  // ✅ single datetime input (better UX)
+  const [startTime, setStartTime] = useState("");
   const [duration, setDuration] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!startTime || !duration) {
+      alert("All fields required");
+      return;
+    }
+
     try {
-
-      const startTime = new Date(`${date}T${time}`);
-
-      const response = await createSession({
+      await createSession({
         startTime,
-        duration
+        duration: Number(duration)
       });
 
       alert("Session saved");
 
-      // add new session to UI immediately
-      setSessions(prev => [response.data, ...prev]);
+      // ✅ CLEAR FORM
+      setStartTime("");
+      setDuration("");
+
+      // ✅ REFRESH FROM BACKEND (IMPORTANT)
+      refreshSessions();
 
     } catch (error) {
       console.log(error);
+      alert("Failed to create session");
     }
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
 
-      <h3>Create Session</h3>
+      <h3>Log Gym Session</h3>
 
+      {/* ✅ better input */}
       <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-      />
-
-      <input
-        type="time"
-        value={time}
-        onChange={(e) => setTime(e.target.value)}
+        type="datetime-local"
+        value={startTime}
+        onChange={(e) => setStartTime(e.target.value)}
       />
 
       <input

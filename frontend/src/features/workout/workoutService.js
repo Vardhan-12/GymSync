@@ -1,56 +1,57 @@
 import axios from "../../services/axiosInstance";
 
+/* ================== BASIC CRUD ================== */
+
 export const createWorkout = async (data) => {
-  const response = await axios.post("/workouts", data);
-  return response.data;
+  const res = await axios.post("/workouts", data);
+  return res.data;
 };
 
 export const getWorkouts = async () => {
-  const response = await axios.get("/workouts");
-  return response.data;
+  const res = await axios.get("/workouts");
+  return res.data;
 };
 
 export const deleteWorkout = async (id) => {
-  const response = await axios.delete(`/workouts/${id}`);
-  return response.data;
-};
-
-export const getWorkoutProgress = async (exercise) => {
-  const response = await axios.get(`/workouts/progress/${exercise}`);
-  return response.data;
-};
-
-export const getLatestWorkout = async () => {
-  const response = await axios.get("/workouts/latest");
-  return response.data;
-};
-
-export const toggleLikeWorkout = async (id) => {
-  const response = await axios.post(`/workouts/${id}/like`);
-  return response.data;
+  const res = await axios.delete(`/workouts/${id}`);
+  return res.data;
 };
 
 export const updateWorkout = async (id, data) => {
-  const response = await axios.put(`/workouts/${id}`, data);
-  return response.data;
+  const res = await axios.put(`/workouts/${id}`, data);
+  return res.data;
 };
 
-export const getExerciseProgress = async (exercise) => {
-  const response = await axios.get(`/workouts/progress/${exercise}`);
-  return response.data;
+/* ================== SOCIAL ================== */
+
+export const toggleLikeWorkout = async (id) => {
+  const res = await axios.post(`/workouts/${id}/like`);
+  return res.data;
+};
+
+/* ================== ANALYTICS ================== */
+
+export const getLatestWorkout = async () => {
+  const res = await axios.get("/workouts/latest");
+  return res.data;
 };
 
 export const getUserExercises = async () => {
-  const response = await axios.get("/workouts/exercises");
-  return response.data;
+  const res = await axios.get("/workouts/exercises");
+  return res.data;
+};
+
+export const getExerciseProgress = async (exercise) => {
+  const res = await axios.get(`/workouts/progress/${exercise}`);
+  return res.data;
 };
 
 export const getVolumeProgress = async () => {
-  const response = await axios.get("/workouts/progress/volume");
-  return response.data;
+  const res = await axios.get("/workouts/progress/volume");
+  return res.data;
 };
 
 export const getExerciseInsights = async (exercise) => {
-  const response = await axios.get(`/workouts/progress/insights/${exercise}`);
-  return response.data;
+  const res = await axios.get(`/workouts/progress/insights/${exercise}`);
+  return res.data;
 };

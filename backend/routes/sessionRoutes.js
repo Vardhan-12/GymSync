@@ -39,7 +39,7 @@ router.get("/summary", protect, sessionController.getSessionSummary);
 router.get(
   "/weekly-summary",
   protect,
-  authorize("admin"),
+  //authorize("admin"),
   sessionController.getWeeklySummary
 );
 

@@ -1,20 +1,21 @@
 import { useEffect, useState } from "react";
 import WorkoutForm from "../WorkoutForm";
-import { getWorkouts, deleteWorkout, updateWorkout } from "../workoutService";
+import {
+  getWorkouts,
+  deleteWorkout,
+  updateWorkout
+} from "../workoutService";
 
 function WorkoutPage() {
 
-  // all workouts from backend
+  /* ================== STATE ================== */
+
   const [workouts, setWorkouts] = useState([]);
-
-  // page mode (library | create | editor)
-  const [mode, setMode] = useState("library");
-
-  // currently opened workout
+  const [mode, setMode] = useState("library"); // library | create | editor
   const [activeWorkout, setActiveWorkout] = useState(null);
 
+  /* ================== LOAD WORKOUTS ================== */
 
-  // load workouts when page opens
   useEffect(() => {
     fetchWorkouts();
   }, []);
@@ -24,68 +25,103 @@ function WorkoutPage() {
     setWorkouts(data || []);
   };
 
+  /* ================== STATS (TOP SECTION) ================== */
 
-  // after new workout created → refresh list
+  const totalWorkouts = workouts.length;
+
+  const totalVolume = workouts.reduce(
+    (sum, w) => sum + (w.totalVolume || 0),
+    0
+  );
+
+  const lastWorkout =
+    workouts.length > 0
+      ? new Date(workouts[0].createdAt).toLocaleDateString()
+      : "N/A";
+
+  /* ================== ACTIONS ================== */
+
   const handleWorkoutAdded = async () => {
     await fetchWorkouts();
     setMode("library");
   };
 
-
-  // delete workout
   const handleDelete = async (id) => {
     await deleteWorkout(id);
     setWorkouts((prev) => prev.filter((w) => w._id !== id));
   };
 
-
-  // open workout editor
   const openWorkout = (workout) => {
     setActiveWorkout(workout);
     setMode("editor");
   };
 
-
-  // finish workout → go back to library
   const finishWorkout = async () => {
+    try {
+      const updatedExercises = activeWorkout.exercises.map(ex => {
 
-  try {
+  return {
+    ...ex,
 
-    await updateWorkout(activeWorkout._id, {
-      title: activeWorkout.title,
-      exercises: activeWorkout.exercises
-    });
+    // ✅ ALWAYS PUSH PROGRESS ENTRY
+    progress: [
+      ...(ex.progress || []),
+      {
+        weight: ex.weight,
+        reps: ex.reps,
+        sets: ex.sets,
+        date: new Date()
+      }
+    ]
+  };
+});
 
-    // reload workouts from backend
-    await fetchWorkouts();
+await updateWorkout(activeWorkout._id, {
+  title: activeWorkout.title,
+  exercises: updatedExercises
+});
 
-    // reset editor
-    setActiveWorkout(null);
-    setMode("library");
+      await fetchWorkouts();
 
-  } catch (error) {
-    console.error("Failed to update workout", error);
-  }
+      setActiveWorkout(null);
+      setMode("library");
 
-};
+    } catch (error) {
+      console.error("Update failed", error);
+    }
+  };
 
+  /* ================== UI ================== */
 
   return (
     <div>
 
       <h1>Workout Tracker</h1>
-   
 
-      {/* ================= WORKOUT LIBRARY ================= */}
+      {/* ================== TOP: STATS ================== */}
+
+      {mode === "library" && (
+        <div style={{ marginBottom: "20px" }}>
+
+          <h3>Stats</h3>
+
+          <p>Total Workouts: {totalWorkouts}</p>
+          <p>Total Volume: {totalVolume}</p>
+          <p>Last Workout: {lastWorkout}</p>
+
+        </div>
+      )}
+
+      {/* ================== LIBRARY ================== */}
 
       {mode === "library" && (
 
         <div>
 
-          <h2>Saved Workouts</h2>
+          <h2>Workout Library</h2>
 
           {workouts.length === 0 && (
-            <p>No saved workouts yet.</p>
+            <p>No workouts yet. Start building 💪</p>
           )}
 
           {workouts.map((workout) => (
@@ -93,25 +129,29 @@ function WorkoutPage() {
             <div
               key={workout._id}
               style={{
-                border: "1px solid #ccc",
-                padding: "10px",
-                marginTop: "10px"
+                border: "1px solid #ddd",
+                padding: "12px",
+                marginTop: "10px",
+                borderRadius: "8px"
               }}
             >
 
-              {/* workout title */}
               <h3>{workout.title}</h3>
 
-              {/* number of exercises */}
-              <p>{workout?.exercises?.length || 0} exercises</p>
+              <p>Exercises: {workout.exercises.length}</p>
+              <p>Volume: {workout.totalVolume}</p>
+
+              <p style={{ fontSize: "12px", color: "gray" }}>
+                {new Date(workout.createdAt).toLocaleDateString()}
+              </p>
 
               <button onClick={() => openWorkout(workout)}>
-                Open Workout
+                Open
               </button>
 
               <button
-                style={{ marginLeft: "10px" }}
                 onClick={() => handleDelete(workout._id)}
+                style={{ marginLeft: "10px" }}
               >
                 Delete
               </button>
@@ -120,20 +160,17 @@ function WorkoutPage() {
 
           ))}
 
-          {/* create new workout */}
           <button
             style={{ marginTop: "20px" }}
             onClick={() => setMode("create")}
           >
-            + Create New Workout
+            + Create Workout
           </button>
 
         </div>
-
       )}
 
-
-      {/* ================= CREATE WORKOUT ================= */}
+      {/* ================== CREATE ================== */}
 
       {mode === "create" && (
 
@@ -146,11 +183,9 @@ function WorkoutPage() {
           <WorkoutForm onWorkoutAdded={handleWorkoutAdded} />
 
         </div>
-
       )}
 
-
-      {/* ================= WORKOUT EDITOR ================= */}
+      {/* ================== EDITOR ================== */}
 
       {mode === "editor" && activeWorkout && (
 
@@ -166,7 +201,6 @@ function WorkoutPage() {
 
             <div key={index} style={{ marginBottom: "10px" }}>
 
-              {/* exercise name */}
               <input
                 value={ex.name}
                 onChange={(e) => {
@@ -176,7 +210,6 @@ function WorkoutPage() {
                 }}
               />
 
-              {/* sets */}
               <input
                 type="number"
                 value={ex.sets}
@@ -187,7 +220,6 @@ function WorkoutPage() {
                 }}
               />
 
-              {/* reps */}
               <input
                 type="number"
                 value={ex.reps}
@@ -198,7 +230,6 @@ function WorkoutPage() {
                 }}
               />
 
-              {/* weight */}
               <input
                 type="number"
                 value={ex.weight}
@@ -209,7 +240,6 @@ function WorkoutPage() {
                 }}
               />
 
-              {/* delete exercise */}
               <button
                 onClick={() => {
                   const updated = activeWorkout.exercises.filter((_, i) => i !== index);
@@ -223,7 +253,6 @@ function WorkoutPage() {
 
           ))}
 
-          {/* add new exercise */}
           <button
             onClick={() =>
               setActiveWorkout({
@@ -238,18 +267,15 @@ function WorkoutPage() {
             + Add Exercise
           </button>
 
-          {/* finish workout */}
           <button
-            style={{ marginLeft: "10px" }}
             onClick={finishWorkout}
+            style={{ marginLeft: "10px" }}
           >
             Finish Workout
           </button>
 
         </div>
-
       )}
-
 
     </div>
   );

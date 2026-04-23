@@ -1,20 +1,22 @@
-import { useEffect } from "react";
-import { getSessions, deleteSession } from "../sessionService";
+import { deleteSession } from "../sessionService";
 
-function SessionList({ sessions, setSessions }) {
-
-  useEffect(() => {
-    loadSessions();
-  }, []);
-
-  async function loadSessions() {
-    const response = await getSessions();
-    setSessions(response.data.sessions || []);
-  }
+function SessionList({ sessions, refreshSessions }) {
 
   async function handleDelete(id) {
-    await deleteSession(id);
-    setSessions(prev => prev.filter(s => s._id !== id));
+    try {
+      await deleteSession(id);
+
+      // ✅ ALWAYS REFRESH FROM BACKEND
+      refreshSessions();
+
+    } catch (error) {
+      console.log(error);
+      alert("Failed to delete");
+    }
+  }
+
+  if (!sessions.length) {
+    return <p>No sessions found</p>;
   }
 
   return (
@@ -27,11 +29,18 @@ function SessionList({ sessions, setSessions }) {
         const date = new Date(session.startTime);
 
         return (
-          <div key={session._id}>
+          <div
+            key={session._id}
+            style={{
+              border: "1px solid #ccc",
+              padding: "10px",
+              marginBottom: "10px"
+            }}
+          >
 
-            <p>Date: {date.toLocaleDateString()}</p>
-            <p>Time: {date.toLocaleTimeString()}</p>
-            <p>Duration: {session.duration} minutes</p>
+            <p><strong>Date:</strong> {date.toLocaleDateString()}</p>
+            <p><strong>Time:</strong> {date.toLocaleTimeString()}</p>
+            <p><strong>Duration:</strong> {session.duration} minutes</p>
 
             <button onClick={() => handleDelete(session._id)}>
               Delete
