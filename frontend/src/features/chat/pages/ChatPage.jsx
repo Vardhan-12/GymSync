@@ -100,6 +100,20 @@ function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 🔥 mark messages as read when opening chat
+useEffect(() => {
+  socket.emit("markAsRead", matchId);
+}, [matchId]);
+
+// 🔥 receive read updates
+useEffect(() => {
+  socket.on("messagesRead", () => {
+    setMessages(prev =>
+      prev.map(m => ({ ...m, isRead: true }))
+    );
+  });
+}, []);
+
   /* ===================================================
      SEND MESSAGE
      - optimistic UI update

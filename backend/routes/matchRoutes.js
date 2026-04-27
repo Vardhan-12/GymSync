@@ -1,3 +1,4 @@
+// ================== IMPORTS ==================
 const express = require("express");
 const router = express.Router();
 
@@ -8,20 +9,27 @@ const {
   getMyMatches,
   getIncomingRequests,
   respondToRequest,
+  getMatchSuggestions, // ✅ IMPORTANT
 } = require("../controllers/matchController");
 
-// Send match request
+
+// ================== ROUTES ==================
+
+// 🔹 send match request
 router.post("/request", protect, sendMatchRequest);
 
-// Get all my matches (for button state)
+// 🔹 get accepted matches (chat list)
 router.get("/my", protect, getMyMatches);
 
-// Get incoming requests
+// 🔹 get incoming requests
 router.get("/incoming", protect, getIncomingRequests);
 
-// Accept / Reject
+// 🔹 accept / reject request
 router.post("/respond", protect, respondToRequest);
 
-router.get("/my", protect, getMyMatches);
+// 🔹 smart partner suggestions (🔥 main feature)
+router.get("/suggestions", protect, getMatchSuggestions);
 
+
+// ================== EXPORT ==================
 module.exports = router;

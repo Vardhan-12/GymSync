@@ -1,21 +1,22 @@
+// ================== IMPORTS ==================
 const User = require("../models/User");
+const Session = require("../models/Session");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-/*
-  Generate Access Token (15 minutes)
-*/
+
+// ================== TOKEN HELPERS ==================
+
+// 🔹 Generate Access Token (short-lived)
 const generateAccessToken = (id) => {
   return jwt.sign(
     { id },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "1d" } // keep consistent with your project
   );
 };
 
-/*
-  Generate Refresh Token (7 days)
-*/
+// 🔹 Generate Refresh Token (long-lived)
 const generateRefreshToken = (id) => {
   return jwt.sign(
     { id },
@@ -24,21 +25,25 @@ const generateRefreshToken = (id) => {
   );
 };
 
-/*
-  REGISTER
-*/
-const registerUser = async (req, res) => {
+
+// ================== AUTH CONTROLLERS ==================
+
+// 🔹 REGISTER
+exports.registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    // check existing user
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: "User already exists" });
     }
 
+    // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    // create user
+    await User.create({
       name,
       email,
       password: hashedPassword
@@ -49,23 +54,24 @@ const registerUser = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/*
-  LOGIN
-*/
-const loginUser = async (req, res) => {
+
+// 🔹 LOGIN
+exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -73,24 +79,30 @@ const loginUser = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Store refresh token in DB
+    // save refresh token
     user.refreshToken = refreshToken;
     await user.save();
 
+    // ✅ IMPORTANT: send user also (frontend needs it)
     res.status(200).json({
       accessToken,
-      refreshToken
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        gymName: user.gymName,
+        preferredWorkoutTime: user.preferredWorkoutTime
+      }
     });
 
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/*
-  REFRESH TOKEN
-*/
-const refreshToken = async (req, res) => {
+
+// 🔹 REFRESH TOKEN
+exports.refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
@@ -112,7 +124,7 @@ const refreshToken = async (req, res) => {
     const newAccessToken = generateAccessToken(user._id);
     const newRefreshToken = generateRefreshToken(user._id);
 
-    // Rotate refresh token
+    // rotate token
     user.refreshToken = newRefreshToken;
     await user.save();
 
@@ -126,10 +138,9 @@ const refreshToken = async (req, res) => {
   }
 };
 
-/*
-  LOGOUT
-*/
-const logoutUser = async (req, res) => {
+
+// 🔹 LOGOUT
+exports.logoutUser = async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
@@ -140,24 +151,52 @@ const logoutUser = async (req, res) => {
       await user.save();
     }
 
-    res.status(200).json({ message: "Logged out successfully" });
+    res.json({ message: "Logged out successfully" });
 
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/*
-  GET PROFILE
-*/
-const getProfile = async (req, res) => {
-  res.status(200).json({ user: req.user });
+
+// ================== PROFILE CONTROLLERS ==================
+
+// 🔹 GET LOGGED-IN USER PROFILE
+exports.getMyProfile = async (req, res) => {
+  try {
+    // req.user comes from auth middleware
+    res.json(req.user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-const Session = require("../models/Session");
 
+// 🔹 UPDATE PROFILE
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
 
-const getUsersFromSessions = async (req, res) => {
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // update fields safely
+    Object.assign(user, req.body);
+
+    const updatedUser = await user.save();
+
+    res.json({
+      message: "Profile updated",
+      user: updatedUser
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getUsersFromSessions = async (req, res) => {
   try {
     const sessions = await Session.find().select("createdBy");
 
@@ -169,44 +208,8 @@ const getUsersFromSessions = async (req, res) => {
       .select("name email createdAt");
 
     res.json(users);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
-
-module.exports = {
-  getUsersFromSessions,
-};
-
-/*
-  UPDATE PROFILE
-*/
-const updateProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    Object.assign(user, req.body);
-    const updatedUser = await user.save();
-
-    res.status(200).json({
-      message: "Profile updated",
-      user: updatedUser
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-module.exports = {
-  registerUser,
-  loginUser,
-  refreshToken,
-  logoutUser,
-  getProfile,
-  updateProfile,
-  getUsersFromSessions, // ✅ ADD THIS HERE
 };

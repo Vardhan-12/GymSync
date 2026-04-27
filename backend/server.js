@@ -82,28 +82,18 @@ let onlineUsers = new Set();
 
 // ================== SOCKET LOGIC ==================
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
 
-  // 🔹 When user opens app → register as online
-  socket.on("userOnline", (userId) => {
-    socket.userId = userId; // attach userId to socket
-    onlineUsers.add(userId);
-
-    // broadcast updated online users list
-    io.emit("onlineUsers", Array.from(onlineUsers));
-  });
-
-  // 🔹 Join specific chat room
+  // join room
   socket.on("joinRoom", (matchId) => {
     socket.join(matchId);
   });
 
-  // 🔹 Send message to room
-  socket.on("sendMessage", (data) => {
-    io.to(data.matchId).emit("receiveMessage", data);
+  // send message
+  socket.on("sendMessage", (msg) => {
+    socket.to(msg.matchId).emit("receiveMessage", msg);
   });
 
-  // 🔹 Typing indicator
+  // typing
   socket.on("typing", (matchId) => {
     socket.to(matchId).emit("typing");
   });
@@ -112,17 +102,11 @@ io.on("connection", (socket) => {
     socket.to(matchId).emit("stopTyping");
   });
 
-  // 🔹 Handle disconnect
-  socket.on("disconnect", () => {
-    if (socket.userId) {
-      onlineUsers.delete(socket.userId);
-
-      // update all clients
-      io.emit("onlineUsers", Array.from(onlineUsers));
-    }
-
-    console.log("User disconnected:", socket.id);
+  // 🔥 mark as read
+  socket.on("markAsRead", (matchId) => {
+    socket.to(matchId).emit("messagesRead");
   });
+
 });
 
 // ================== START SERVER ==================

@@ -5,15 +5,17 @@ const { protect } = require("../middleware/authMiddleware");
 
 const {
   getUsersFromSessions,
-  getProfile,
+  getMyProfile,
   updateProfile,
 } = require("../controllers/userController");
 
-// 🔹 Get users from sessions
-router.get("/from-sessions", protect, getUsersFromSessions);
+// 🔹 profile
+router.get("/me", protect, getMyProfile);
 
-// 🔹 Profile routes
-router.get("/profile", protect, getProfile);
-router.put("/profile", protect, updateProfile);
+// 🔹 update profile
+router.put("/me", protect, updateProfile);
+
+// 🔹 partner discovery
+router.get("/from-sessions", protect, getUsersFromSessions);
 
 module.exports = router;

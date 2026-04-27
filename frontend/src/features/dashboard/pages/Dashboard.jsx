@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../auth/authContext";
 import { getRandomQuote } from "../../../utils/quotes";
+import { useNavigate } from "react-router-dom";
 
 import {
   getDensity,
@@ -15,6 +16,7 @@ import { getCrowdLevel } from "../crowdLevel";
 function Dashboard() {
 
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const quote = getRandomQuote();
 
   const [currentCrowd, setCurrentCrowd] = useState(null);
@@ -83,6 +85,21 @@ function Dashboard() {
     <div>
 
       <h1>Dashboard</h1>
+
+      <button
+  onClick={() => navigate("/find-partner")}
+  style={{
+    marginTop: "10px",
+    padding: "10px",
+    background: "#4CAF50",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer"
+  }}
+>
+  Find Workout Partner
+</button>
 
       {/* 🔹 TOP SECTION */}
       <h3>Welcome, {user.name}</h3>

@@ -1,33 +1,82 @@
-import { Link } from "react-router-dom";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../features/auth/authContext";
+import NavItem from "./NavItem";
+import { getMyMatches } from "../features/profile/profileService";
+
+/*
+  Sidebar
+  - Navigation
+  - Unread chat count
+*/
 
 function Sidebar() {
+
   const { user, logout } = useContext(AuthContext);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    loadUnread();
+  }, []);
+
+  const loadUnread = async () => {
+    try {
+      const matches = await getMyMatches();
+
+      let total = 0;
+
+      matches.forEach(m => {
+        total += m.unreadCount || 0; // backend should send this
+      });
+
+      setUnread(total);
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   return (
-    <div style={{ width: "200px", padding: "20px" }}>
-      <h3>GymSync</h3>
+    <div style={sidebar}>
 
-      <p><Link to="/">Dashboard</Link></p>
-      <p><Link to="/sessions">Sessions</Link></p>
-      <p><Link to="/workouts">Workouts</Link></p>
-      <p><Link to="/progress">Progress</Link></p>
+      <h2>GymSync</h2>
 
-      {/* 👇 Profile separation */}
-      <p><Link to="/profiles">Find Partners</Link></p>
-      <p><Link to="/profile">My Profile</Link></p>
-      
+      <NavItem to="/" label="Dashboard" />
+      <NavItem to="/sessions" label="Sessions" />
+      <NavItem to="/workouts" label="Workouts" />
+      <NavItem to="/progress" label="Progress" />
+      <NavItem to="/find-partner" label="Find Partner" />
 
-      {!user ? (
-        <p><Link to="/">Login</Link></p>
-      ) : (
-        <p onClick={logout} style={{ cursor: "pointer", color: "red" }}>
+      {/* 🔥 unread badge */}
+      <NavItem to="/chats" label="Chats" badge={unread} />
+
+      <NavItem to="/profiles" label="All Users" />
+      <NavItem to="/profile" label="Profile" />
+
+      {user && (
+        <div onClick={logout} style={logoutBtn}>
           Logout
-        </p>
+        </div>
       )}
+
     </div>
   );
 }
+
+const sidebar = {
+  width: "220px",
+  height: "100vh",
+  padding: "20px",
+  background: "#f9f9f9",
+  borderRight: "1px solid #ddd",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px"
+};
+
+const logoutBtn = {
+  marginTop: "auto",
+  color: "red",
+  cursor: "pointer"
+};
 
 export default Sidebar;

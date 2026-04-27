@@ -1,151 +1,166 @@
-import { useState, useEffect } from "react";
-import WorkoutList from "../../workout/WorkoutList";
-import { getWorkouts } from "../../workout/workoutService";
-import {
-  getIncomingRequests,
-  respondToRequest,
-  getMyMatches,
-} from "../profileService";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { getProfile, updateProfile } from "../profileService";
 
 function ProfilePage() {
-  const [workouts, setWorkouts] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [matches, setMatches] = useState([]);
 
-  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState({});
 
   useEffect(() => {
-    loadAll();
+    loadProfile();
   }, []);
 
-  // ✅ single loader (clean + safe)
-  const loadAll = async () => {
+  const loadProfile = async () => {
     try {
-      const [w, r, m] = await Promise.all([
-        getWorkouts(),
-        getIncomingRequests(),
-        getMyMatches(),
-      ]);
-
-      setWorkouts(w || []);
-      setRequests(r || []);
-      
-      const sortedMatches = (m || []).sort((a, b) => {
-  const timeA = a.lastMessage?.createdAt || a.createdAt;
-  const timeB = b.lastMessage?.createdAt || b.createdAt;
-
-  return new Date(timeB) - new Date(timeA);
-});
-
-setMatches(sortedMatches);
-
+      const data = await getProfile();
+      setUser(data);
+      setForm(data); // preload form
     } catch (err) {
-      console.log("Load error:", err);
+      console.log(err);
     }
   };
 
-  const handleResponse = async (id, action) => {
+  // 🔹 handle input change
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  // 🔹 save profile
+  const handleSave = async () => {
     try {
-      await respondToRequest(id, action);
+      const res = await updateProfile(form);
 
-      if (action === "accepted") {
-        navigate(`/chat/${id}`);
-      }
+      setUser(res.user);   // update UI
+      setEditMode(false);  // exit edit mode
 
-      setRequests((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
-      console.log("Response error:", err);
+      console.log(err);
+      alert("Update failed");
     }
   };
+
+  if (!user) return <p>Loading...</p>;
 
   return (
-    <div>
-      <h1>My Profile</h1>
+    <div style={container}>
 
-      {/* 🔹 WORKOUTS */}
-      <WorkoutList workouts={workouts} refreshWorkouts={loadAll} />
+      <h2>My Profile</h2>
 
-      {/* 🔹 INCOMING REQUESTS */}
-      <h2 style={{ marginTop: "30px" }}>Incoming Requests</h2>
-
-      {requests.length === 0 ? (
-        <p>No requests</p>
-      ) : (
-        requests.map((req) => (
-          <div key={req._id} style={card}>
-            <p>{req.requester?.name}</p>
-
-            <button onClick={() => handleResponse(req._id, "accepted")}>
-              Accept
-            </button>
-
-            <button onClick={() => handleResponse(req._id, "rejected")}>
-              Reject
-            </button>
+      {/* ================= VIEW MODE ================= */}
+      {!editMode ? (
+        <>
+          <div style={card}>
+            <p><strong>Name:</strong> {user.name}</p>
+            <p><strong>Email:</strong> {user.email}</p>
+            <p><strong>Gym:</strong> {user.gymName || "-"}</p>
           </div>
-        ))
-      )}
 
-      {/* 🔹 MY CHATS */}
-      <h2 style={{ marginTop: "30px" }}>My Chats</h2>
+          <div style={card}>
+            <h3>Fitness Info</h3>
+            <p>Age: {user.age || "-"}</p>
+            <p>Height: {user.height || "-"} cm</p>
+            <p>Weight: {user.weight || "-"} kg</p>
+            <p>Preferred Time: {user.preferredWorkoutTime || "-"}</p>
+          </div>
 
-      {matches.length === 0 ? (
-        <p>No chats yet</p>
+          <button onClick={() => setEditMode(true)} style={btn}>
+            Edit Profile
+          </button>
+        </>
       ) : (
-        matches.map((match) => {
-          const myId = localStorage.getItem("userId");
 
-          const otherUser =
-            match.requester?._id === myId
-              ? match.recipient
-              : match.requester;
+        /* ================= EDIT MODE ================= */
+        <>
+          <div style={card}>
 
-          return (
-            <div key={match._id} style={card}>
-              <div>
-                <p style={{ fontWeight: "bold" }}>
-                  {otherUser?.name || "User"}
-                </p>
+            <input
+              name="name"
+              value={form.name || ""}
+              onChange={handleChange}
+              placeholder="Name"
+            />
 
-                <p style={{ fontSize: "12px", color: "gray" }}>
-  {match.lastMessage
-    ? `${
-        match.lastMessage.sender === localStorage.getItem("userId")
-          ? "You: "
-          : ""
-      }${match.lastMessage.text}`
-    : "No messages yet"}
-</p>
+            <input
+              name="gymName"
+              value={form.gymName || ""}
+              onChange={handleChange}
+              placeholder="Gym Name"
+            />
 
-                {match.lastMessage && (
-                  <p style={{ fontSize: "10px", color: "gray" }}>
-                    {new Date(
-                      match.lastMessage.createdAt
-                    ).toLocaleTimeString()}
-                  </p>
-                )}
-              </div>
+            <input
+              name="age"
+              value={form.age || ""}
+              onChange={handleChange}
+              placeholder="Age"
+              type="number"
+            />
 
-              <button onClick={() => navigate(`/chat/${match._id}`)}>
-                Open
-              </button>
-            </div>
-          );
-        })
+            <input
+              name="height"
+              value={form.height || ""}
+              onChange={handleChange}
+              placeholder="Height (cm)"
+              type="number"
+            />
+
+            <input
+              name="weight"
+              value={form.weight || ""}
+              onChange={handleChange}
+              placeholder="Weight (kg)"
+              type="number"
+            />
+
+            <input
+              name="preferredWorkoutTime"
+              value={form.preferredWorkoutTime || ""}
+              onChange={handleChange}
+              placeholder="Preferred Time (Morning / Evening)"
+            />
+
+          </div>
+
+          <button onClick={handleSave} style={btn}>
+            Save
+          </button>
+
+          <button onClick={() => setEditMode(false)} style={btn}>
+            Cancel
+          </button>
+        </>
       )}
+
     </div>
   );
 }
 
+
+// ================= STYLES =================
+
+const container = {
+  maxWidth: "500px",
+  margin: "auto",
+  padding: "20px",
+};
+
 const card = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "10px",
-  padding: "10px",
   border: "1px solid #ddd",
-  borderRadius: "8px",
+  padding: "15px",
+  borderRadius: "10px",
+  marginBottom: "15px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+};
+
+const btn = {
+  marginRight: "10px",
+  padding: "8px 12px",
+  cursor: "pointer",
 };
 
 export default ProfilePage;
