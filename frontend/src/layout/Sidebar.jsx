@@ -1,82 +1,119 @@
-import { useContext, useEffect, useState } from "react";
-import { AuthContext } from "../features/auth/authContext";
-import NavItem from "./NavItem";
-import { getMyMatches } from "../features/profile/profileService";
+// src/layout/Sidebar.jsx
 
-/*
-  Sidebar
-  - Navigation
-  - Unread chat count
-*/
+import { NavLink } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../features/auth/authContext";
 
 function Sidebar() {
-
-  const { user, logout } = useContext(AuthContext);
-  const [unread, setUnread] = useState(0);
-
-  useEffect(() => {
-    loadUnread();
-  }, []);
-
-  const loadUnread = async () => {
-    try {
-      const matches = await getMyMatches();
-
-      let total = 0;
-
-      matches.forEach(m => {
-        total += m.unreadCount || 0; // backend should send this
-      });
-
-      setUnread(total);
-
-    } catch (err) {
-      console.log(err);
-    }
-  };
+  const { logout } = useContext(AuthContext);
 
   return (
-    <div style={sidebar}>
+    <div style={container}>
 
-      <h2>GymSync</h2>
+      {/* LOGO / APP NAME */}
+      <h2 style={logo}>GymSync</h2>
 
-      <NavItem to="/" label="Dashboard" />
-      <NavItem to="/sessions" label="Sessions" />
-      <NavItem to="/workouts" label="Workouts" />
-      <NavItem to="/progress" label="Progress" />
-      <NavItem to="/find-partner" label="Find Partner" />
+      {/* MAIN NAVIGATION */}
+      <div style={navSection}>
+        <NavItem to="/" label="Dashboard" />
+        <NavItem to="/sessions" label="Sessions" />
+        <NavItem to="/workouts" label="Workouts" />
+        <NavItem to="/progress" label="Progress" />
+      </div>
 
-      {/* 🔥 unread badge */}
-      <NavItem to="/chats" label="Chats" badge={unread} />
+      {/* SOCIAL */}
+      <div style={navSection}>
+        <SectionTitle title="Social" />
+        <NavItem to="/connections" label="Connections" />
+      </div>
 
-      <NavItem to="/profiles" label="All Users" />
-      <NavItem to="/profile" label="Profile" />
+      {/* PROFILE */}
+      <div style={navSection}>
+        <SectionTitle title="Account" />
+        <NavItem to="/profile" label="Profile" />
+      </div>
 
-      {user && (
-        <div onClick={logout} style={logoutBtn}>
-          Logout
-        </div>
-      )}
+      {/* LOGOUT */}
+      <button onClick={logout} style={logoutBtn}>
+        Logout
+      </button>
 
     </div>
   );
 }
 
-const sidebar = {
+/* 🔹 Reusable Nav Item with ACTIVE styling */
+function NavItem({ to, label }) {
+  return (
+    <NavLink
+      to={to}
+      style={({ isActive }) => ({
+        ...link,
+        ...(isActive ? activeLink : {}),
+      })}
+    >
+      {label}
+    </NavLink>
+  );
+}
+
+/* 🔹 Section Title */
+function SectionTitle({ title }) {
+  return <p style={sectionTitle}>{title}</p>;
+}
+
+/* ================= STYLES ================= */
+
+const container = {
   width: "220px",
   height: "100vh",
   padding: "20px",
-  background: "#f9f9f9",
-  borderRight: "1px solid #ddd",
+  background: "#f8f9fa",
+  borderRight: "1px solid #e0e0e0",
   display: "flex",
   flexDirection: "column",
-  gap: "10px"
+};
+
+const logo = {
+  marginBottom: "30px",
+  fontWeight: "bold",
+};
+
+const navSection = {
+  marginBottom: "25px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+};
+
+const sectionTitle = {
+  fontSize: "12px",
+  color: "#888",
+  marginBottom: "5px",
+};
+
+const link = {
+  textDecoration: "none",
+  color: "#333",
+  padding: "10px",
+  borderRadius: "8px",
+  transition: "0.2s",
+};
+
+const activeLink = {
+  background: "#4CAF50",
+  color: "#fff",
+  fontWeight: "bold",
 };
 
 const logoutBtn = {
   marginTop: "auto",
-  color: "red",
-  cursor: "pointer"
+  padding: "10px",
+  border: "none",
+  borderRadius: "8px",
+  background: "#ff4d4f",
+  color: "#fff",
+  cursor: "pointer",
 };
 
 export default Sidebar;

@@ -1,17 +1,19 @@
-// ================== IMPORTS ==================
+// ================= IMPORTS =================
 const Match = require("../models/Match");
 const Message = require("../models/Message");
+const User = require("../models/User");
 const Session = require("../models/Session");
 const densityService = require("../services/densityService");
 
-
-// ================== SEND MATCH REQUEST ==================
-exports.sendMatchRequest = async (req, res) => {
+/* =====================================================
+   1. SEND MATCH REQUEST
+===================================================== */
+const sendMatchRequest = async (req, res) => {
   try {
     const requester = req.user._id;
     const { recipientId } = req.body;
 
-    // ❌ prevent self matching
+    // ❌ cannot match yourself
     if (requester.toString() === recipientId) {
       return res.status(400).json({ message: "Cannot match yourself" });
     }
@@ -32,7 +34,6 @@ exports.sendMatchRequest = async (req, res) => {
     const match = await Match.create({
       requester,
       recipient: recipientId,
-      status: "pending",
     });
 
     res.status(201).json(match);
@@ -42,13 +43,13 @@ exports.sendMatchRequest = async (req, res) => {
   }
 };
 
-
-// ================== GET MY MATCHES ==================
-exports.getMyMatches = async (req, res) => {
+/* =====================================================
+   2. GET MY MATCHES (ACCEPTED ONLY + LAST MESSAGE)
+===================================================== */
+const getMyMatches = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // only accepted matches
     const matches = await Match.find({
       status: "accepted",
       $or: [
@@ -59,7 +60,7 @@ exports.getMyMatches = async (req, res) => {
       .populate("requester", "name")
       .populate("recipient", "name");
 
-    // ✅ attach last message for chat preview
+    // 🔥 attach last message to each match
     const results = await Promise.all(
       matches.map(async (match) => {
         const lastMessage = await Message.findOne({ match: match._id })
@@ -80,9 +81,10 @@ exports.getMyMatches = async (req, res) => {
   }
 };
 
-
-// ================== GET INCOMING REQUESTS ==================
-exports.getIncomingRequests = async (req, res) => {
+/* =====================================================
+   3. GET INCOMING REQUESTS
+===================================================== */
+const getIncomingRequests = async (req, res) => {
   try {
     const userId = req.user._id;
 
@@ -98,9 +100,10 @@ exports.getIncomingRequests = async (req, res) => {
   }
 };
 
-
-// ================== ACCEPT / REJECT REQUEST ==================
-exports.respondToRequest = async (req, res) => {
+/* =====================================================
+   4. ACCEPT / REJECT REQUEST
+===================================================== */
+const respondToRequest = async (req, res) => {
   try {
     const { matchId, action } = req.body;
 
@@ -110,12 +113,11 @@ exports.respondToRequest = async (req, res) => {
       return res.status(404).json({ message: "Match not found" });
     }
 
-    // ❌ only recipient can respond
+    // 🔐 only recipient can respond
     if (match.recipient.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // ✅ update status
     match.status = action; // "accepted" or "rejected"
     await match.save();
 
@@ -126,48 +128,89 @@ exports.respondToRequest = async (req, res) => {
   }
 };
 
-
-// ================== SMART PARTNER SUGGESTIONS ==================
-exports.getMatchSuggestions = async (req, res) => {
+/* =====================================================
+   5. 🔥 SMART PARTNER SUGGESTIONS (AI LOGIC)
+===================================================== */
+const getMatchSuggestions = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // 🔹 get current user's sessions
+    // 🔹 current user
+    const currentUser = await User.findById(userId);
+
+    // 🔹 get all sessions of current user
     const mySessions = await Session.find({ createdBy: userId });
 
+    // ❌ no sessions → no suggestions
     if (mySessions.length === 0) {
       return res.json([]);
     }
 
-    // 🔹 store suggestions with overlap count
     let suggestionsMap = new Map();
 
+    /* ===============================
+       STEP 1: FIND OVERLAPPING USERS
+    =============================== */
     for (const session of mySessions) {
       const users = await densityService.findOverlappingUsers(session._id);
 
       users.forEach((u) => {
-        const id = u._id.toString();
+        const key = u._id.toString();
 
-        if (!suggestionsMap.has(id)) {
-          suggestionsMap.set(id, {
+        if (!suggestionsMap.has(key)) {
+          suggestionsMap.set(key, {
             user: u,
-            overlapCount: 1,
+            overlapScore: 1,
+            timeScore: 0,
           });
         } else {
-          suggestionsMap.get(id).overlapCount++;
+          suggestionsMap.get(key).overlapScore++;
         }
       });
     }
 
-    // 🔹 convert map → array
+    /* ===============================
+       STEP 2: ADD TIME MATCH SCORE
+    =============================== */
+    for (const [key, value] of suggestionsMap.entries()) {
+
+      const u = await User.findById(value.user._id);
+
+      // ✅ same preferred workout time
+      if (
+        u.preferredWorkoutTime &&
+        u.preferredWorkoutTime === currentUser.preferredWorkoutTime
+      ) {
+        value.timeScore = 2;
+      }
+
+      // 🔥 FINAL SCORE
+      value.totalScore =
+        value.overlapScore * 3 +
+        value.timeScore;
+    }
+
+    /* ===============================
+       STEP 3: SORT BY SCORE
+    =============================== */
     const suggestions = Array.from(suggestionsMap.values());
 
-    // 🔹 sort by best match (highest overlap)
-    suggestions.sort((a, b) => b.overlapCount - a.overlapCount);
+    suggestions.sort((a, b) => b.totalScore - a.totalScore);
 
     res.json(suggestions);
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+/* =====================================================
+   EXPORTS (IMPORTANT — ONLY ONE EXPORT BLOCK)
+===================================================== */
+module.exports = {
+  sendMatchRequest,
+  getMyMatches,
+  getIncomingRequests,
+  respondToRequest,
+  getMatchSuggestions,
 };

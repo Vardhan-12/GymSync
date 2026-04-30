@@ -176,9 +176,13 @@ exports.getBestTimePrediction = asyncHandler(async (req, res) => {
 
   const result = await predictionService.getBestGymTime();
 
+  if (!result) {
+    return res.json(null);
+  }
+
   res.json({
-    bestHour: result._id,
-    expectedCrowd: "LOW"
+    bestHour: result.bestHour,
+    expectedCrowd: result.expectedCrowd
   });
 
 });

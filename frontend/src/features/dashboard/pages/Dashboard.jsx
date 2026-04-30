@@ -1,8 +1,11 @@
+// Dashboard.jsx
+
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../auth/authContext";
 import { getRandomQuote } from "../../../utils/quotes";
 import { useNavigate } from "react-router-dom";
 
+// 🔹 API services
 import {
   getDensity,
   getBestTime,
@@ -10,14 +13,21 @@ import {
   getLatestWorkout
 } from "../dashboardService";
 
+// 🔹 UI Components
 import WeeklyChart from "../WeeklyChart";
 import { getCrowdLevel } from "../crowdLevel";
 
 function Dashboard() {
 
+  /* ================== GLOBAL STATE ================== */
+
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // random motivation quote
   const quote = getRandomQuote();
+
+  /* ================== LOCAL STATE ================== */
 
   const [currentCrowd, setCurrentCrowd] = useState(null);
   const [bestTime, setBestTime] = useState(null);
@@ -25,24 +35,31 @@ function Dashboard() {
   const [latestWorkout, setLatestWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ================== FETCH DATA ================== */
+  /* ================== FETCH DASHBOARD DATA ================== */
+
   useEffect(() => {
 
     const fetchData = async () => {
       try {
 
+        // 🔹 get today's date (YYYY-MM-DD)
         const today = new Date().toISOString().split("T")[0];
 
+        // 🔹 call backend APIs
         const densityData = await getDensity(today);
         const best = await getBestTime();
         const weekly = await getWeeklySummary();
         const latest = await getLatestWorkout();
 
+        // 🔹 store in state
         setBestTime(best);
         setWeeklyData(weekly);
         setLatestWorkout(latest);
 
-        // 🔥 CURRENT CROWD LOGIC
+        /* ================== CURRENT CROWD LOGIC ==================
+           Find which 30-min window current time falls into
+        ========================================================== */
+
         const now = new Date();
 
         const currentWindow = densityData.find((w) => {
@@ -66,8 +83,9 @@ function Dashboard() {
 
   }, [user]);
 
-  /* ================== UI ================== */
+  /* ================== UI STATES ================== */
 
+  // 🔹 not logged in
   if (!user) {
     return (
       <div>
@@ -77,79 +95,129 @@ function Dashboard() {
     );
   }
 
+  // 🔹 loading state
   if (loading) {
     return <p>Loading dashboard...</p>;
   }
 
-  return (
-    <div>
+  /* ================== MAIN UI ================== */
 
+  return (
+    <div style={container}>
+
+      {/* 🔹 HEADER */}
       <h1>Dashboard</h1>
 
+      {/* 🔥 FIXED: correct route */}
       <button
-  onClick={() => navigate("/find-partner")}
-  style={{
-    marginTop: "10px",
-    padding: "10px",
-    background: "#4CAF50",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer"
-  }}
->
-  Find Workout Partner
-</button>
+        onClick={() => navigate("/connections")}
+        style={button}
+      >
+        Find Workout Partner
+      </button>
 
-      {/* 🔹 TOP SECTION */}
+      {/* ================== TOP SECTION ================== */}
+
       <h3>Welcome, {user.name}</h3>
-      <p>{quote}</p>
+      <p style={quoteStyle}>{quote}</p>
 
-      <h3 style={{ marginTop: "20px" }}>Last Workout</h3>
-      {latestWorkout ? (
-        <div>
-          <p><strong>{latestWorkout.title}</strong></p>
-          <p>Volume: {latestWorkout.totalVolume}</p>
-          <p>
-            {new Date(latestWorkout.createdAt).toLocaleDateString()}
+      {/* 🔹 Latest Workout */}
+      <Section title="Last Workout">
+
+        {latestWorkout ? (
+          <div>
+            <p><strong>{latestWorkout.title}</strong></p>
+            <p>Volume: {latestWorkout.totalVolume}</p>
+            <p>
+              {new Date(latestWorkout.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+        ) : (
+          <p>No workouts yet</p>
+        )}
+
+      </Section>
+
+      {/* ================== MIDDLE SECTION ================== */}
+
+      <Section title="Gym Status">
+
+        {currentCrowd ? (
+          <p style={{
+            color: currentCrowd.color,
+            fontWeight: "bold"
+          }}>
+            {currentCrowd.emoji} {currentCrowd.label}
           </p>
-        </div>
-      ) : (
-        <p>No workouts yet</p>
-      )}
+        ) : (
+          <p>No data available</p>
+        )}
 
-      {/* 🔹 MIDDLE SECTION */}
-      <h3 style={{ marginTop: "30px" }}>Gym Status</h3>
+      </Section>
 
-      {currentCrowd ? (
-        <p style={{ color: currentCrowd.color, fontWeight: "bold" }}>
-          {currentCrowd.emoji} {currentCrowd.label}
-        </p>
-      ) : (
-        <p>No data available</p>
-      )}
+      {/* 🔥 AI OUTPUT */}
+      <Section title="Best Time to Go">
 
-      <h3 style={{ marginTop: "20px" }}>Best Time to Go</h3>
+        {bestTime ? (
+          <p>
+            {bestTime.bestHour}:00 — Expected Crowd: {bestTime.expectedCrowd}
+          </p>
+        ) : (
+          <p>No prediction available</p>
+        )}
 
-      {bestTime ? (
-        <p>
-          {bestTime.bestHour}:00 — Expected Crowd: {bestTime.expectedCrowd}
-        </p>
-      ) : (
-        <p>No prediction available</p>
-      )}
+      </Section>
 
-      {/* 🔹 BOTTOM SECTION */}
-      <h3 style={{ marginTop: "30px" }}>Weekly Activity</h3>
+      {/* ================== BOTTOM SECTION ================== */}
 
-      {weeklyData.length ? (
-        <WeeklyChart data={weeklyData} />
-      ) : (
-        <p>No data yet</p>
-      )}
+      <Section title="Weekly Activity">
+
+        {weeklyData.length ? (
+          <WeeklyChart data={weeklyData} />
+        ) : (
+          <p>No data yet</p>
+        )}
+
+      </Section>
 
     </div>
   );
 }
+
+/* ================== REUSABLE SECTION ================== */
+
+function Section({ title, children }) {
+  return (
+    <div style={section}>
+      <h3>{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+/* ================== STYLES ================== */
+
+const container = {
+  padding: "20px",
+};
+
+const section = {
+  marginTop: "30px",
+};
+
+const button = {
+  marginTop: "10px",
+  padding: "10px",
+  background: "#4CAF50",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer"
+};
+
+const quoteStyle = {
+  color: "#555",
+  fontStyle: "italic"
+};
 
 export default Dashboard;
